@@ -8,6 +8,9 @@ def get_llm():
     if LLM_PROVIDER == "ollama":
         from langchain_ollama import ChatOllama
         return ChatOllama(model=OLLAMA_MODEL, base_url=OLLAMA_BASE_URL, temperature=0)
+    if LLM_PROVIDER == "furiosa":
+        from langchain_openai import ChatOpenAI
+        return ChatOpenAI(model=FURIOSA_MODEL, api_key=FURIOSA_API_KEY, base_url=FURIOSA_BASE_URL, temperature=0)
     from langchain_openai import ChatOpenAI
     kwargs = {"model": OPENAI_MODEL, "api_key": OPENAI_API_KEY, "temperature": 0}
     if OPENAI_COMPATIBLE_BASE_URL:
