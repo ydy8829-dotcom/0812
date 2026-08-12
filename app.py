@@ -1,6 +1,8 @@
 import html
 import streamlit as st
 from run_graph import run
+from config import FURIOSA_API_KEY, FURIOSA_BASE_URL, FURIOSA_MODEL, LLM_PROVIDER
+from services.furiosa_api import health
 
 st.set_page_config(page_title="FlowPilot", page_icon="*", layout="wide")
 st.markdown("""
@@ -17,6 +19,23 @@ with st.sidebar:
     st.markdown("### Workspace")
     mode = st.radio("Mode", ["recommendation", "execution"], format_func=lambda x: "Recommendation" if x == "recommendation" else "Execution")
     st.caption("Execution mode asks for confirmation before external work.")
+    st.markdown("<div class='rule'></div>", unsafe_allow_html=True)
+    st.markdown("#### Inference backend")
+    st.markdown(f"<div class='card'><div class='eyebrow'>ACTIVE PROVIDER</div><div class='action-title'>{html.escape(LLM_PROVIDER.upper())}</div><div class='muted'>Furiosa endpoint<br>{html.escape(FURIOSA_BASE_URL)}</div></div>", unsafe_allow_html=True)
+    if st.button("Test Furiosa connection", use_container_width=True):
+        try:
+            status = health(FURIOSA_BASE_URL)
+            st.session_state.furiosa_status = status
+        except Exception as error:
+            st.session_state.furiosa_status = {"status": "error", "message": str(error)}
+    if "furiosa_status" in st.session_state:
+        status = st.session_state.furiosa_status
+        if status.get("status") == "ok":
+            st.success(f"Connected · {status['latency_ms']} ms")
+            st.caption(f"Server: {status.get('data', {}).get('version', 'available')}")
+        else:
+            st.error("Furiosa endpoint is unavailable")
+            st.caption(status.get("message", "Check the NPU Pod URL and server status."))
     st.markdown("<div class='rule'></div>", unsafe_allow_html=True)
     st.markdown("#### Pipeline")
     for label in ["Input analysis", "Intent classification", "Context and goal", "Action ranking", "Next best action"]: st.markdown(f"<div class='muted' style='padding:.45rem 0'>o &nbsp; {label}</div>", unsafe_allow_html=True)
@@ -55,6 +74,8 @@ if result:
         nxt = result.get("next_best_action", {})
         st.markdown(f'<div class="card selected"><div class="action-title">{html.escape(nxt.get("action", ""))}</div><div class="muted">{html.escape(nxt.get("expected_outcome", ""))}</div></div>', unsafe_allow_html=True)
         if mode == "execution": st.warning("Execution mode: confirmation is required before external work.")
+        st.markdown('<div class="eyebrow" style="margin-top:2rem">INFERENCE TELEMETRY</div><h2>Runtime lane</h2>', unsafe_allow_html=True)
+        st.markdown(f'<div class="card"><div class="muted">Provider · {html.escape(LLM_PROVIDER.upper())}<br>Model · {html.escape(FURIOSA_MODEL if LLM_PROVIDER == "furiosa" else "configured model")}<br>Endpoint · {html.escape(FURIOSA_BASE_URL if LLM_PROVIDER == "furiosa" else "provider managed")}</div></div>', unsafe_allow_html=True)
         with st.expander("Show analysis trace"): st.json({"context": result.get("context"), "constraints": result.get("constraints"), "trace": result.get("trace", [])})
 else:
     st.markdown('<div class="rule"></div><p class="muted">Enter a situation above and build a plan to see ranked actions.</p>', unsafe_allow_html=True)
